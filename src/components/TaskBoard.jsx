@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Clock, AlertCircle, Calendar, Forward, MessageSquare, Download, FileText, Search, LayoutGrid, List, BellRing, Filter, ArrowUpDown } from 'lucide-react';
 import { format, isPast, addDays, isBefore, parse } from 'date-fns';
 import { exportToExcel, exportToPDF } from '../utils/export';
-import config from '../../app_data/config.json';
 import { useTaskContext } from '../context/TaskContext';
 
 const TaskBoard = ({ 
@@ -13,7 +12,7 @@ const TaskBoard = ({
   onForward,
   onPush
 }) => {
-  const { users, currentUser } = useTaskContext();
+  const { users, config, currentUser } = useTaskContext();
   const [viewMode, setViewMode] = useState('medium'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
@@ -344,7 +343,7 @@ const TaskBoard = ({
               <Filter size={14} style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }} />
               <select className="form-control" style={{ border: 'none', background: 'transparent' }} value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
                 <option value="">All Priorities</option>
-                {config.priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                {(config.priorities || []).map(p => <option key={p} value={p}>{p}</option>)}
               </select>
               
               <div style={{ width: '1px', height: '20px', background: 'var(--border)' }}></div>
@@ -362,7 +361,7 @@ const TaskBoard = ({
               
               <select className="form-control" style={{ border: 'none', background: 'transparent' }} value={filterAssignedBy} onChange={(e) => setFilterAssignedBy(e.target.value)}>
                 <option value="">All Assigners</option>
-                {config.officers.map(o => <option key={o} value={o}>{o}</option>)}
+                {(config.officers || []).map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
           </div>

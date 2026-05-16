@@ -13,15 +13,18 @@ export const TaskProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState({ priorities: [], officers: [] });
 
   // ── Fetch on mount ──────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       fetch(`${API}/tasks`).then(r => r.json()),
       fetch(`${API}/users`).then(r => r.json()),
-    ]).then(([t, u]) => {
+      fetch(`${API}/config`).then(r => r.json()),
+    ]).then(([t, u, c]) => {
       setTasks(t);
       setUsers(u);
+      setConfig(c);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -124,7 +127,7 @@ export const TaskProvider = ({ children }) => {
 
   return (
     <TaskContext.Provider value={{
-      tasks, users, loading, currentUser,
+      tasks, users, config, loading, currentUser,
       login, logout,
       addTask, updateGlobalTaskStatus, updateSubordinateStatus, pushTask, forwardTask,
       addUser, updateUser

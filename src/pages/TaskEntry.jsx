@@ -4,10 +4,9 @@ import { ArrowLeft, Users, Plus, Minus } from 'lucide-react';
 import { useTaskContext } from '../context/TaskContext';
 import { format, addDays } from 'date-fns';
 import SpeechTextarea from '../components/SpeechTextarea';
-import config from '../../app_data/config.json';
 
 const TaskEntry = () => {
-  const { addTask, users, currentUser } = useTaskContext();
+  const { addTask, users, config, currentUser } = useTaskContext();
   const navigate = useNavigate();
 
   const subordinates = users.filter(u => u.role === 'subordinate' || u.role === 'sub_incharge');
@@ -20,8 +19,8 @@ const TaskEntry = () => {
     letterDate: format(new Date(), "yyyy-MM-dd"),
     receivedDateTime: defaultDateStr,
     briefSubject: '',
-    assignedBySenior: config.officers[0] || '',
-    priority: config.priorities[1] || 'Medium',
+    assignedBySenior: config.officers?.[0] || '',
+    priority: config.priorities?.[1] || 'Medium',
     instructions: '',
     assignedTo: [],
     assignmentDateTime: defaultDateStr,
@@ -163,7 +162,7 @@ const TaskEntry = () => {
             <div className="form-group">
               <label className="form-label">Assigned by Senior Officer</label>
               <select className="form-control" name="assignedBySenior" value={formData.assignedBySenior} onChange={handleChange}>
-                {config.officers.map(off => (
+                {(config.officers || []).map(off => (
                   <option key={off} value={off}>{off}</option>
                 ))}
               </select>
@@ -171,7 +170,7 @@ const TaskEntry = () => {
             <div className="form-group">
               <label className="form-label">Priority</label>
               <select className="form-control" name="priority" value={formData.priority} onChange={handleChange}>
-                {config.priorities.map(p => (
+                {(config.priorities || []).map(p => (
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
