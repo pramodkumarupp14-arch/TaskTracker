@@ -50,13 +50,13 @@ const Login = () => {
               <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
                 <User size={18} />
               </div>
-              <input 
-                type="text" 
-                className="form-control" 
+              <input
+                type="text"
+                className="form-control"
                 style={{ paddingLeft: '2.5rem' }}
-                value={username} 
-                onChange={(e) => setUsername(e.target.value)} 
-                required 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -67,13 +67,13 @@ const Login = () => {
               <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
                 <Lock size={18} />
               </div>
-              <input 
-                type="password" 
-                className="form-control" 
+              <input
+                type="password"
+                className="form-control"
                 style={{ paddingLeft: '2.5rem' }}
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -82,10 +82,10 @@ const Login = () => {
             Sign In
           </button>
         </form>
-        
-        <div style={{ marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+
+        {/* <div style={{ marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
           <p>Mock Users: incharge, adarsh, ajeet (password: password123)</p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

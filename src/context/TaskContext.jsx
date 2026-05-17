@@ -6,7 +6,6 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsIn
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Helper functions for mapping database snake_case to frontend camelCase
 const mapToCamel = (item) => {
   if (!item) return item;
   return {
@@ -71,7 +70,6 @@ export const TaskProvider = ({ children }) => {
     rawStatuses: []
   });
 
-  // ── Fetch on mount ──────────────────────────────────────────────
   const fetchData = async () => {
     try {
       const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
@@ -87,7 +85,6 @@ export const TaskProvider = ({ children }) => {
       if (prioritiesRes.error) throw prioritiesRes.error;
       if (officersRes.error) throw officersRes.error;
 
-      // Fallback for statuses if table doesn't exist
       let rawStats = [];
       if (statusesRes.error) {
         rawStats = [
@@ -128,11 +125,55 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const refreshData = async () => {
+    try {
+      const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
+        supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*'),
+        supabase.from('priorities').select('*').order('id'),
+        supabase.from('officers').select('*').order('id'),
+        supabase.from('statuses').select('*').order('id')
+      ]);
+
+      if (tasksRes.error || usersRes.error || prioritiesRes.error || officersRes.error) return;
+
+      let rawStats = statusesRes.error ? [
+        { id: 1, name: 'pending', enabled: true },
+        { id: 2, name: 'partially_done', enabled: true },
+        { id: 3, name: 'fully_completed', enabled: true },
+        { id: 4, name: 'resolved', enabled: true },
+        { id: 5, name: 'closed', enabled: true }
+      ] : statusesRes.data;
+
+      const rawPri = (prioritiesRes.data || []).map(p => ({ ...p, enabled: p.enabled !== false }));
+      const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false }));
+
+      setTasks(tasksRes.data.map(mapToCamel));
+      setUsers((usersRes.data || []).map(u => ({ 
+        ...u, 
+        enabled: u.enabled !== false,
+        power_assign_tasks: u.power_assign_tasks !== false,
+        power_forward_tasks: u.power_forward_tasks !== false,
+        power_manage_masters: u.power_manage_masters === true 
+      })));
+      
+      setConfig({
+        priorities: rawPri.filter(p => p.enabled).map(p => p.name),
+        officers: rawOff.filter(o => o.enabled).map(o => o.name),
+        statuses: rawStats.filter(s => s.enabled).map(s => s.name),
+        rawPriorities: rawPri,
+        rawOfficers: rawOff,
+        rawStatuses: rawStats
+      });
+    } catch (err) {
+      console.error('Silent data refresh failed:', err);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
 
-  // ── Session persistence ─────────────────────────────────────────
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('currentUser_v4', JSON.stringify(currentUser));
@@ -141,7 +182,6 @@ export const TaskProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  // Update local session current user when the remote user gets modified
   useEffect(() => {
     if (currentUser && users.length > 0) {
       const updatedSelf = users.find(u => u.id === currentUser.id);
@@ -155,7 +195,6 @@ export const TaskProvider = ({ children }) => {
     }
   }, [users, currentUser]);
 
-  // ── Auth ────────────────────────────────────────────────────────
   const login = (username, password) => {
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
@@ -170,7 +209,6 @@ export const TaskProvider = ({ children }) => {
 
   const logout = () => setCurrentUser(null);
 
-  // ── Tasks ───────────────────────────────────────────────────────
   const addTask = async (task) => {
     const subStatuses = {};
     if (Array.isArray(task.assignedTo)) {
@@ -281,7 +319,6 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  // ── Users ───────────────────────────────────────────────────────
   const addUser = async (user) => {
     const newUser = { 
       ...user, 
@@ -333,7 +370,6 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  // ── System Configuration CRUD ──────────────────────────────────
   const addPriority = async (name) => {
     try {
       const { data, error } = await supabase
@@ -478,7 +514,8 @@ export const TaskProvider = ({ children }) => {
       addUser, updateUser,
       addPriority, updatePriority,
       addOfficer, updateOfficer,
-      addStatus, updateStatus
+      addStatus, updateStatus,
+      refreshData
     }}>
       {children}
     </TaskContext.Provider>

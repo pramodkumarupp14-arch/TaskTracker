@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTaskContext } from '../context/TaskContext';
 import SpeechTextarea from '../components/SpeechTextarea';
 import TaskBoard from '../components/TaskBoard';
 
 const SubordinateDashboard = ({ hideHeader }) => {
-  const { tasks, users, currentUser, updateSubordinateStatus, forwardTask } = useTaskContext();
+  const { tasks, users, currentUser, updateSubordinateStatus, forwardTask, refreshData } = useTaskContext();
+  
+  useEffect(() => {
+    refreshData();
+  }, []);
   const [selectedTask, setSelectedTask] = useState(null);
   const [status, setStatus] = useState('');
   const [reason, setReason] = useState('');

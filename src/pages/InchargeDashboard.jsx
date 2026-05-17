@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Clock, CheckCircle, AlertCircle, FileText, Users, Settings } from 'lucide-react';
 import { useTaskContext } from '../context/TaskContext';
 import TaskBoard from '../components/TaskBoard';
 
 const InchargeDashboard = () => {
-  const { tasks, pushTask, updateGlobalTaskStatus, currentUser, config } = useTaskContext();
+  const { tasks, pushTask, updateGlobalTaskStatus, currentUser, config, refreshData } = useTaskContext();
   const navigate = useNavigate();
   
   const [selectedTaskStatus, setSelectedTaskStatus] = useState(null);
   const [newGlobalStatus, setNewGlobalStatus] = useState('');
+
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
   const partialCount = tasks.filter(t => t.status === 'partially_done').length;

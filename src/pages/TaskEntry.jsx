@@ -6,7 +6,7 @@ import { format, addDays } from 'date-fns';
 import SpeechTextarea from '../components/SpeechTextarea';
 
 const TaskEntry = () => {
-  const { addTask, users, config, currentUser } = useTaskContext();
+  const { addTask, users, config, currentUser, refreshData } = useTaskContext();
   const navigate = useNavigate();
 
   // Only assign to active subordinates/sub-incharges
@@ -30,6 +30,11 @@ const TaskEntry = () => {
     tentativeCompletionTime: format(addDays(new Date(), 7), "yyyy-MM-dd'T'17:00"),
     inchargeRemarks: ''
   });
+
+  // Force latest master lists on page load
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   // Dynamic default values once config is fetched
   useEffect(() => {
