@@ -350,11 +350,9 @@ const TaskBoard = ({
               
               <select className="form-control" style={{ border: 'none', background: 'transparent' }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                 <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="partially_done">Partially Done</option>
-                <option value="fully_completed">Fully Completed</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
+                {(config.statuses || ['pending', 'partially_done', 'fully_completed', 'resolved', 'closed']).map(statusKey => (
+                  <option key={statusKey} value={statusKey}>{statusKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                ))}
               </select>
 
               <div style={{ width: '1px', height: '20px', background: 'var(--border)' }}></div>

@@ -62,37 +62,67 @@ export const TaskProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
   const [loading, setLoading] = useState(true);
-  const [config, setConfig] = useState({ priorities: [], officers: [] });
+  const [config, setConfig] = useState({ 
+    priorities: [], 
+    officers: [], 
+    statuses: [],
+    rawPriorities: [],
+    rawOfficers: [],
+    rawStatuses: []
+  });
 
   // ── Fetch on mount ──────────────────────────────────────────────
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [tasksRes, usersRes, prioritiesRes, officersRes] = await Promise.all([
-          supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-          supabase.from('users').select('*'),
-          supabase.from('priorities').select('name').order('id'),
-          supabase.from('officers').select('name').order('id')
-        ]);
+  const fetchData = async () => {
+    try {
+      const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
+        supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*'),
+        supabase.from('priorities').select('*').order('id'),
+        supabase.from('officers').select('*').order('id'),
+        supabase.from('statuses').select('*').order('id')
+      ]);
 
-        if (tasksRes.error) throw tasksRes.error;
-        if (usersRes.error) throw usersRes.error;
-        if (prioritiesRes.error) throw prioritiesRes.error;
-        if (officersRes.error) throw officersRes.error;
+      if (tasksRes.error) throw tasksRes.error;
+      if (usersRes.error) throw usersRes.error;
+      if (prioritiesRes.error) throw prioritiesRes.error;
+      if (officersRes.error) throw officersRes.error;
 
-        setTasks(tasksRes.data.map(mapToCamel));
-        setUsers(usersRes.data);
-        setConfig({
-          priorities: prioritiesRes.data.map(p => p.name),
-          officers: officersRes.data.map(o => o.name)
-        });
-      } catch (err) {
-        console.error('Error fetching data from Supabase:', err);
-      } finally {
-        setLoading(false);
+      // Fallback for statuses if table doesn't exist
+      let rawStats = [];
+      if (statusesRes.error) {
+        rawStats = [
+          { id: 1, name: 'pending', enabled: true },
+          { id: 2, name: 'partially_done', enabled: true },
+          { id: 3, name: 'fully_completed', enabled: true },
+          { id: 4, name: 'resolved', enabled: true },
+          { id: 5, name: 'closed', enabled: true }
+        ];
+      } else {
+        rawStats = statusesRes.data;
       }
-    };
 
+      const rawPri = (prioritiesRes.data || []).map(p => ({ ...p, enabled: p.enabled !== false }));
+      const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false }));
+
+      setTasks(tasksRes.data.map(mapToCamel));
+      setUsers((usersRes.data || []).map(u => ({ ...u, enabled: u.enabled !== false, has_powers: u.has_powers !== false })));
+      
+      setConfig({
+        priorities: rawPri.filter(p => p.enabled).map(p => p.name),
+        officers: rawOff.filter(o => o.enabled).map(o => o.name),
+        statuses: rawStats.filter(s => s.enabled).map(s => s.name),
+        rawPriorities: rawPri,
+        rawOfficers: rawOff,
+        rawStatuses: rawStats
+      });
+    } catch (err) {
+      console.error('Error fetching data from Supabase:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -105,10 +135,28 @@ export const TaskProvider = ({ children }) => {
     }
   }, [currentUser]);
 
+  // Update local session current user when the remote user gets modified
+  useEffect(() => {
+    if (currentUser && users.length > 0) {
+      const updatedSelf = users.find(u => u.id === currentUser.id);
+      if (updatedSelf) {
+        // If disabled, log out automatically
+        if (updatedSelf.enabled === false) {
+          setCurrentUser(null);
+        } else if (JSON.stringify(updatedSelf) !== JSON.stringify(currentUser)) {
+          setCurrentUser(updatedSelf);
+        }
+      }
+    }
+  }, [users, currentUser]);
+
   // ── Auth ────────────────────────────────────────────────────────
   const login = (username, password) => {
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
+      if (user.enabled === false) {
+        return { success: false, message: 'Your account has been disabled. Please contact the Incharge.' };
+      }
       setCurrentUser(user);
       return { success: true, role: user.role };
     }
@@ -191,7 +239,12 @@ export const TaskProvider = ({ children }) => {
 
   // ── Users ───────────────────────────────────────────────────────
   const addUser = async (user) => {
-    const newUser = { ...user, id: Date.now() };
+    const newUser = { 
+      ...user, 
+      id: Date.now(), 
+      enabled: user.enabled !== false, 
+      has_powers: user.has_powers !== false 
+    };
     try {
       const { data, error } = await supabase
         .from('users')
@@ -200,7 +253,7 @@ export const TaskProvider = ({ children }) => {
         .single();
 
       if (error) throw error;
-      setUsers(prev => [...prev, data]);
+      setUsers(prev => [...prev, { ...data, enabled: data.enabled !== false, has_powers: data.has_powers !== false }]);
     } catch (err) {
       console.error('Error adding user:', err);
     }
@@ -216,9 +269,145 @@ export const TaskProvider = ({ children }) => {
         .single();
 
       if (error) throw error;
-      setUsers(prev => prev.map(u => u.id === id ? data : u));
+      setUsers(prev => prev.map(u => u.id === id ? { ...data, enabled: data.enabled !== false, has_powers: data.has_powers !== false } : u));
     } catch (err) {
       console.error('Error updating user:', err);
+    }
+  };
+
+  // ── System Configuration CRUD ──────────────────────────────────
+  const addPriority = async (name) => {
+    try {
+      const { data, error } = await supabase
+        .from('priorities')
+        .insert([{ name, enabled: true }])
+        .select()
+        .single();
+      if (error) throw error;
+      
+      setConfig(prev => {
+        const raw = [...prev.rawPriorities, { ...data, enabled: true }];
+        return {
+          ...prev,
+          rawPriorities: raw,
+          priorities: raw.filter(p => p.enabled).map(p => p.name)
+        };
+      });
+    } catch (err) {
+      console.error('Error adding priority:', err);
+    }
+  };
+
+  const updatePriority = async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('priorities')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      setConfig(prev => {
+        const raw = prev.rawPriorities.map(p => p.id === id ? { ...p, ...data } : p);
+        return {
+          ...prev,
+          rawPriorities: raw,
+          priorities: raw.filter(p => p.enabled).map(p => p.name)
+        };
+      });
+    } catch (err) {
+      console.error('Error updating priority:', err);
+    }
+  };
+
+  const addOfficer = async (name) => {
+    try {
+      const { data, error } = await supabase
+        .from('officers')
+        .insert([{ name, enabled: true }])
+        .select()
+        .single();
+      if (error) throw error;
+
+      setConfig(prev => {
+        const raw = [...prev.rawOfficers, { ...data, enabled: true }];
+        return {
+          ...prev,
+          rawOfficers: raw,
+          officers: raw.filter(o => o.enabled).map(o => o.name)
+        };
+      });
+    } catch (err) {
+      console.error('Error adding officer:', err);
+    }
+  };
+
+  const updateOfficer = async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('officers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      setConfig(prev => {
+        const raw = prev.rawOfficers.map(o => o.id === id ? { ...o, ...data } : o);
+        return {
+          ...prev,
+          rawOfficers: raw,
+          officers: raw.filter(o => o.enabled).map(o => o.name)
+        };
+      });
+    } catch (err) {
+      console.error('Error updating officer:', err);
+    }
+  };
+
+  const addStatus = async (name) => {
+    try {
+      const { data, error } = await supabase
+        .from('statuses')
+        .insert([{ name, enabled: true }])
+        .select()
+        .single();
+      if (error) throw error;
+
+      setConfig(prev => {
+        const raw = [...prev.rawStatuses, { ...data, enabled: true }];
+        return {
+          ...prev,
+          rawStatuses: raw,
+          statuses: raw.filter(s => s.enabled).map(s => s.name)
+        };
+      });
+    } catch (err) {
+      console.error('Error adding status:', err);
+    }
+  };
+
+  const updateStatus = async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('statuses')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      setConfig(prev => {
+        const raw = prev.rawStatuses.map(s => s.id === id ? { ...s, ...data } : s);
+        return {
+          ...prev,
+          rawStatuses: raw,
+          statuses: raw.filter(s => s.enabled).map(s => s.name)
+        };
+      });
+    } catch (err) {
+      console.error('Error updating status:', err);
     }
   };
 
@@ -227,7 +416,10 @@ export const TaskProvider = ({ children }) => {
       tasks, users, config, loading, currentUser,
       login, logout,
       addTask, updateGlobalTaskStatus, updateSubordinateStatus, pushTask, forwardTask,
-      addUser, updateUser
+      addUser, updateUser,
+      addPriority, updatePriority,
+      addOfficer, updateOfficer,
+      addStatus, updateStatus
     }}>
       {children}
     </TaskContext.Provider>

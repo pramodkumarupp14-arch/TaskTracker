@@ -15,18 +15,27 @@ const UserManagement = () => {
     username: '',
     name: '',
     password: '',
-    role: 'subordinate'
+    role: 'subordinate',
+    enabled: true,
+    has_powers: true
   });
 
   const openNewUserModal = () => {
     setEditingUser(null);
-    setFormData({ username: '', name: '', password: '', role: 'subordinate' });
+    setFormData({ username: '', name: '', password: '', role: 'subordinate', enabled: true, has_powers: true });
     setIsModalOpen(true);
   };
 
   const openEditModal = (user) => {
     setEditingUser(user);
-    setFormData({ username: user.username, name: user.name, password: user.password, role: user.role });
+    setFormData({ 
+      username: user.username, 
+      name: user.name, 
+      password: user.password, 
+      role: user.role,
+      enabled: user.enabled !== false,
+      has_powers: user.has_powers !== false
+    });
     setIsModalOpen(true);
   };
 
@@ -69,7 +78,7 @@ const UserManagement = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>User Management</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Manage subordinate and sub-incharge accounts.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Manage subordinate and sub-incharge accounts, toggle status, and configure sub-incharge powers.</p>
         </div>
         <button className="btn btn-primary" onClick={openNewUserModal}>
           <Plus size={20} /> Add New User
@@ -100,17 +109,19 @@ const UserManagement = () => {
                 <th>Name</th>
                 <th>Username</th>
                 <th>Role</th>
+                <th>Sub-Incharge Powers</th>
+                <th>Account Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No users found matching your search.</td>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No users found matching your search.</td>
                 </tr>
               ) : (
                 filteredUsers.map(user => (
-                  <tr key={user.id}>
+                  <tr key={user.id} style={{ opacity: user.enabled !== false ? 1 : 0.6 }}>
                     <td style={{ fontWeight: 500 }}>{user.name}</td>
                     <td>{user.username}</td>
                     <td>
@@ -120,6 +131,26 @@ const UserManagement = () => {
                         border: '1px solid var(--border)'
                       }}>
                         {user.role.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td>
+                      {user.role === 'sub_incharge' ? (
+                        <span className={`badge`} style={{
+                          background: user.has_powers !== false ? 'var(--success-light)' : 'var(--danger-light)',
+                          color: user.has_powers !== false ? 'var(--success-text)' : 'var(--danger-text)'
+                        }}>
+                          {user.has_powers !== false ? 'Supervisory (Full)' : 'Revoked (Subordinate)'}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>-</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge`} style={{ 
+                        background: user.enabled !== false ? 'var(--success-light)' : 'var(--danger-light)',
+                        color: user.enabled !== false ? 'var(--success-text)' : 'var(--danger-text)'
+                      }}>
+                        {user.enabled !== false ? 'Active' : 'Disabled'}
                       </span>
                     </td>
                     <td>
@@ -201,6 +232,34 @@ const UserManagement = () => {
                   {editingUser && editingUser.role === 'incharge' && <option value="incharge">Incharge</option>}
                 </select>
               </div>
+
+              {formData.role === 'sub_incharge' && (
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <input 
+                    type="checkbox" 
+                    id="has-powers-checkbox"
+                    checked={formData.has_powers} 
+                    onChange={(e) => setFormData({...formData, has_powers: e.target.checked})}
+                  />
+                  <label htmlFor="has-powers-checkbox" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
+                    Grant Supervisory Powers (Assign & Forward Tasks)
+                  </label>
+                </div>
+              )}
+
+              {(!editingUser || editingUser.role !== 'incharge') && (
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <input 
+                    type="checkbox" 
+                    id="enabled-checkbox"
+                    checked={formData.enabled} 
+                    onChange={(e) => setFormData({...formData, enabled: e.target.checked})}
+                  />
+                  <label htmlFor="enabled-checkbox" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
+                    Account Enabled
+                  </label>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancel</button>

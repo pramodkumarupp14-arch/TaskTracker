@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Plus, Minus } from 'lucide-react';
 import { useTaskContext } from '../context/TaskContext';
@@ -9,7 +9,10 @@ const TaskEntry = () => {
   const { addTask, users, config, currentUser } = useTaskContext();
   const navigate = useNavigate();
 
-  const subordinates = users.filter(u => u.role === 'subordinate' || u.role === 'sub_incharge');
+  // Only assign to active subordinates/sub-incharges
+  const subordinates = users.filter(
+    u => (u.role === 'subordinate' || u.role === 'sub_incharge') && u.enabled !== false
+  );
 
   const defaultDateStr = format(new Date(), "yyyy-MM-dd'T'10:00");
 
@@ -19,14 +22,25 @@ const TaskEntry = () => {
     letterDate: format(new Date(), "yyyy-MM-dd"),
     receivedDateTime: defaultDateStr,
     briefSubject: '',
-    assignedBySenior: config.officers?.[0] || '',
-    priority: config.priorities?.[1] || 'Medium',
+    assignedBySenior: '',
+    priority: '',
     instructions: '',
     assignedTo: [],
     assignmentDateTime: defaultDateStr,
     tentativeCompletionTime: format(addDays(new Date(), 7), "yyyy-MM-dd'T'17:00"),
     inchargeRemarks: ''
   });
+
+  // Dynamic default values once config is fetched
+  useEffect(() => {
+    if (config.officers && config.officers.length > 0 && !formData.assignedBySenior) {
+      setFormData(prev => ({ ...prev, assignedBySenior: config.officers[0] }));
+    }
+    if (config.priorities && config.priorities.length > 0 && !formData.priority) {
+      const defaultPriority = config.priorities.includes('Medium') ? 'Medium' : config.priorities[0];
+      setFormData(prev => ({ ...prev, priority: defaultPriority }));
+    }
+  }, [config]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

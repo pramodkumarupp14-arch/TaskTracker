@@ -6,7 +6,7 @@ import { useTaskContext } from '../context/TaskContext';
 
 const SubInchargeDashboard = () => {
   const navigate = useNavigate();
-  const { tasks } = useTaskContext();
+  const { tasks, currentUser } = useTaskContext();
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
   const partialCount = tasks.filter(t => t.status === 'partially_done').length;
@@ -18,11 +18,17 @@ const SubInchargeDashboard = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Sub-Incharge Dashboard</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Manage your team's tasks and assign new ones.</p>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {currentUser?.has_powers !== false 
+              ? "Manage your team's tasks and assign new ones." 
+              : "View and update tasks assigned to you."}
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/task/new')}>
-          <Plus size={20} /> Assign New Task
-        </button>
+        {currentUser?.has_powers !== false && (
+          <button className="btn btn-primary" onClick={() => navigate('/task/new')}>
+            <Plus size={20} /> Assign New Task
+          </button>
+        )}
       </div>
 
       <div className="stats-grid" style={{ marginBottom: '2rem' }}>

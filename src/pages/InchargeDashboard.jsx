@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Clock, CheckCircle, AlertCircle, FileText, Users } from 'lucide-react';
+import { Plus, Clock, CheckCircle, AlertCircle, FileText, Users, Settings } from 'lucide-react';
 import { useTaskContext } from '../context/TaskContext';
 import TaskBoard from '../components/TaskBoard';
 
 const InchargeDashboard = () => {
-  const { tasks, pushTask, updateGlobalTaskStatus, currentUser } = useTaskContext();
+  const { tasks, pushTask, updateGlobalTaskStatus, currentUser, config } = useTaskContext();
   const navigate = useNavigate();
   
   const [selectedTaskStatus, setSelectedTaskStatus] = useState(null);
@@ -42,6 +42,9 @@ const InchargeDashboard = () => {
           <p style={{ color: 'var(--text-muted)' }}>Overview of all assigned tasks and their progress.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="btn btn-outline" onClick={() => navigate('/incharge/settings')}>
+            <Settings size={20} /> System Settings
+          </button>
           <button className="btn btn-outline" onClick={() => navigate('/incharge/users')}>
             <Users size={20} /> Manage Users
           </button>
@@ -117,11 +120,9 @@ const InchargeDashboard = () => {
                   onChange={(e) => setNewGlobalStatus(e.target.value)}
                   required
                 >
-                  <option value="pending">Pending</option>
-                  <option value="partially_done">Partially Done</option>
-                  <option value="fully_completed">Fully Completed</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed / Archived</option>
+                  {(config.statuses || ['pending', 'partially_done', 'fully_completed', 'resolved', 'closed']).map(statusKey => (
+                    <option key={statusKey} value={statusKey}>{statusKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                  ))}
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>

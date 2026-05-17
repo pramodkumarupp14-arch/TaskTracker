@@ -12,13 +12,15 @@ const SubordinateDashboard = ({ hideHeader }) => {
   const [forwardModalTask, setForwardModalTask] = useState(null);
   const [forwardAssignees, setForwardAssignees] = useState([]);
 
-  // Visibility Hierarchy: Incharge/Sub-Incharge see all tasks, subordinates see only their assigned tasks.
-  const isSupervisory = currentUser?.role === 'incharge' || currentUser?.role === 'sub_incharge';
+  // Visibility Hierarchy: Incharge/Sub-Incharge (with powers) see all tasks.
+  // Revoked Sub-Incharges and subordinates see only tasks assigned directly to them.
+  const isSupervisory = currentUser?.role === 'incharge' || (currentUser?.role === 'sub_incharge' && currentUser?.has_powers !== false);
   const myTasks = isSupervisory 
     ? tasks 
     : tasks.filter(t => t.assignedTo && t.assignedTo.includes(currentUser?.name));
 
-  const subordinates = users.filter(u => u.role === 'subordinate');
+  // Only allow forwarding to active subordinates
+  const subordinates = users.filter(u => u.role === 'subordinate' && u.enabled !== false);
 
   const handleStatusUpdate = (e) => {
     e.preventDefault();
@@ -127,7 +129,7 @@ const SubordinateDashboard = ({ hideHeader }) => {
               <button type="button" onClick={() => setForwardModalTask(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--text-muted)' }}>&times;</button>
             </div>
             <form onSubmit={handleForwardSubmit}>
-              <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Select subordinates to forward this task to.</p>
+              <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Select active subordinates to forward this task to.</p>
               <div className="form-group">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', background: 'var(--bg-app)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', maxHeight: '200px', overflowY: 'auto' }}>
                   {subordinates.map(sub => {
