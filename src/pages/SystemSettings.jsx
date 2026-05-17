@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Edit2, ShieldCheck, Check, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, ShieldCheck, Check, X, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import { useTaskContext } from '../context/TaskContext';
 
 const SystemSettings = () => {
@@ -15,7 +15,7 @@ const SystemSettings = () => {
   const [activeTab, setActiveTab] = useState('priorities');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [formData, setFormData] = useState({ name: '', enabled: true });
+  const [formData, setFormData] = useState({ name: '', enabled: true, sortOrder: 0 });
 
   const rawPriorities = config.rawPriorities || [];
   const rawOfficers = config.rawOfficers || [];
@@ -23,13 +23,13 @@ const SystemSettings = () => {
 
   const openAddModal = () => {
     setEditingItem(null);
-    setFormData({ name: '', enabled: true });
+    setFormData({ name: '', enabled: true, sortOrder: 0 });
     setIsModalOpen(true);
   };
 
   const openEditModal = (item) => {
     setEditingItem(item);
-    setFormData({ name: item.name, enabled: item.enabled !== false });
+    setFormData({ name: item.name, enabled: item.enabled !== false, sortOrder: item.sort_order || 0 });
     setIsModalOpen(true);
   };
 
@@ -37,23 +37,25 @@ const SystemSettings = () => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
+    const orderNum = Number(formData.sortOrder) || 0;
+
     if (activeTab === 'priorities') {
       if (editingItem) {
-        await updatePriority(editingItem.id, { name: formData.name, enabled: formData.enabled });
+        await updatePriority(editingItem.id, { name: formData.name, enabled: formData.enabled, sort_order: orderNum });
       } else {
-        await addPriority(formData.name);
+        await addPriority(formData.name, orderNum);
       }
     } else if (activeTab === 'officers') {
       if (editingItem) {
-        await updateOfficer(editingItem.id, { name: formData.name, enabled: formData.enabled });
+        await updateOfficer(editingItem.id, { name: formData.name, enabled: formData.enabled, sort_order: orderNum });
       } else {
-        await addOfficer(formData.name);
+        await addOfficer(formData.name, orderNum);
       }
     } else if (activeTab === 'statuses') {
       if (editingItem) {
-        await updateStatus(editingItem.id, { name: formData.name, enabled: formData.enabled });
+        await updateStatus(editingItem.id, { name: formData.name, enabled: formData.enabled, sort_order: orderNum });
       } else {
-        await addStatus(formData.name);
+        await addStatus(formData.name, orderNum);
       }
     }
 
@@ -67,7 +69,6 @@ const SystemSettings = () => {
     } else if (activeTab === 'officers') {
       await updateOfficer(item.id, { enabled: nextEnabled });
     } else if (activeTab === 'statuses') {
-      // Don't let them easily disable pending status since tasks initialize with pending
       if (item.name === 'pending' && !nextEnabled) {
         alert("The 'pending' status is required by the system and cannot be disabled.");
         return;
@@ -77,10 +78,13 @@ const SystemSettings = () => {
   };
 
   const getItemsForActiveTab = () => {
-    if (activeTab === 'priorities') return rawPriorities;
-    if (activeTab === 'officers') return rawOfficers;
-    if (activeTab === 'statuses') return rawStatuses;
-    return [];
+    let list = [];
+    if (activeTab === 'priorities') list = rawPriorities;
+    else if (activeTab === 'officers') list = rawOfficers;
+    else if (activeTab === 'statuses') list = rawStatuses;
+    
+    // Sort local display consistently: sort_order asc, id asc
+    return [...list].sort((a, b) => (a.sort_order - b.sort_order) || (a.id - b.id));
   };
 
   return (
@@ -96,7 +100,7 @@ const SystemSettings = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>System Configuration</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Configure task priority levels, senior officers (assigners), and global task statuses.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Configure priority levels, senior officers (assigners), and global task statuses. Arrange order using numerical values.</p>
         </div>
         <button className="btn btn-primary" onClick={openAddModal}>
           <Plus size={20} /> Add New {activeTab.slice(0, -1)}
@@ -134,6 +138,11 @@ const SystemSettings = () => {
             <thead>
               <tr>
                 <th>Name / Value</th>
+                <th>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <ArrowUpDown size={14} /> Display Sequence / Order
+                  </div>
+                </th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -141,7 +150,7 @@ const SystemSettings = () => {
             <tbody>
               {getItemsForActiveTab().length === 0 ? (
                 <tr>
-                  <td colSpan="3" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
                     No items defined. Click "Add New" to get started.
                   </td>
                 </tr>
@@ -150,6 +159,9 @@ const SystemSettings = () => {
                   <tr key={item.id || item.name} style={{ opacity: item.enabled ? 1 : 0.6 }}>
                     <td style={{ fontWeight: 600, color: 'var(--text-main)' }}>
                       {item.name.replace(/_/g, ' ')}
+                    </td>
+                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                      {item.sort_order || 0}
                     </td>
                     <td>
                       <span className={`badge`} style={{ 
@@ -218,7 +230,7 @@ const SystemSettings = () => {
             
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">{activeTab.slice(0, -1).toUpperCase()} Name</label>
+                <label className="form-label">{activeTab.slice(0, -1).toUpperCase()} Name / Value</label>
                 <input 
                   type="text" 
                   className="form-control" 
@@ -226,6 +238,18 @@ const SystemSettings = () => {
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   required 
                   placeholder={`e.g. ${activeTab === 'priorities' ? 'Critical' : activeTab === 'officers' ? 'ADG-HQ' : 'completed_his_part'}`}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Sort Order (Lower numbers display first)</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  value={formData.sortOrder} 
+                  onChange={(e) => setFormData({...formData, sortOrder: e.target.value})}
+                  required 
+                  min="0"
                 />
               </div>
 

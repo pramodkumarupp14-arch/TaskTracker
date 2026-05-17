@@ -75,9 +75,9 @@ export const TaskProvider = ({ children }) => {
       const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('users').select('*'),
-        supabase.from('priorities').select('*').order('id'),
-        supabase.from('officers').select('*').order('id'),
-        supabase.from('statuses').select('*').order('id')
+        supabase.from('priorities').select('*').order('sort_order', { ascending: true }).order('id'),
+        supabase.from('officers').select('*').order('sort_order', { ascending: true }).order('id'),
+        supabase.from('statuses').select('*').order('sort_order', { ascending: true }).order('id')
       ]);
 
       if (tasksRes.error) throw tasksRes.error;
@@ -88,18 +88,18 @@ export const TaskProvider = ({ children }) => {
       let rawStats = [];
       if (statusesRes.error) {
         rawStats = [
-          { id: 1, name: 'pending', enabled: true },
-          { id: 2, name: 'partially_done', enabled: true },
-          { id: 3, name: 'fully_completed', enabled: true },
-          { id: 4, name: 'resolved', enabled: true },
-          { id: 5, name: 'closed', enabled: true }
+          { id: 1, name: 'pending', enabled: true, sort_order: 1 },
+          { id: 2, name: 'partially_done', enabled: true, sort_order: 2 },
+          { id: 3, name: 'fully_completed', enabled: true, sort_order: 3 },
+          { id: 4, name: 'resolved', enabled: true, sort_order: 4 },
+          { id: 5, name: 'closed', enabled: true, sort_order: 5 }
         ];
       } else {
-        rawStats = statusesRes.data;
+        rawStats = statusesRes.data.map(s => ({ ...s, enabled: s.enabled !== false, sort_order: s.sort_order || 0 }));
       }
 
-      const rawPri = (prioritiesRes.data || []).map(p => ({ ...p, enabled: p.enabled !== false }));
-      const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false }));
+      const rawPri = (prioritiesRes.data || []).map(p => ({ ...p, enabled: p.enabled !== false, sort_order: p.sort_order || 0 }));
+      const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false, sort_order: o.sort_order || 0 }));
 
       setTasks(tasksRes.data.map(mapToCamel));
       setUsers((usersRes.data || []).map(u => ({ 
@@ -130,23 +130,23 @@ export const TaskProvider = ({ children }) => {
       const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('users').select('*'),
-        supabase.from('priorities').select('*').order('id'),
-        supabase.from('officers').select('*').order('id'),
-        supabase.from('statuses').select('*').order('id')
+        supabase.from('priorities').select('*').order('sort_order', { ascending: true }).order('id'),
+        supabase.from('officers').select('*').order('sort_order', { ascending: true }).order('id'),
+        supabase.from('statuses').select('*').order('sort_order', { ascending: true }).order('id')
       ]);
 
       if (tasksRes.error || usersRes.error || prioritiesRes.error || officersRes.error) return;
 
       let rawStats = statusesRes.error ? [
-        { id: 1, name: 'pending', enabled: true },
-        { id: 2, name: 'partially_done', enabled: true },
-        { id: 3, name: 'fully_completed', enabled: true },
-        { id: 4, name: 'resolved', enabled: true },
-        { id: 5, name: 'closed', enabled: true }
-      ] : statusesRes.data;
+        { id: 1, name: 'pending', enabled: true, sort_order: 1 },
+        { id: 2, name: 'partially_done', enabled: true, sort_order: 2 },
+        { id: 3, name: 'fully_completed', enabled: true, sort_order: 3 },
+        { id: 4, name: 'resolved', enabled: true, sort_order: 4 },
+        { id: 5, name: 'closed', enabled: true, sort_order: 5 }
+      ] : statusesRes.data.map(s => ({ ...s, enabled: s.enabled !== false, sort_order: s.sort_order || 0 }));
 
-      const rawPri = (prioritiesRes.data || []).map(p => ({ ...p, enabled: p.enabled !== false }));
-      const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false }));
+      const rawPri = (prioritiesRes.data || []).map(p => ({ ...p, enabled: p.enabled !== false, sort_order: p.sort_order || 0 }));
+      const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false, sort_order: o.sort_order || 0 }));
 
       setTasks(tasksRes.data.map(mapToCamel));
       setUsers((usersRes.data || []).map(u => ({ 
@@ -370,17 +370,17 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const addPriority = async (name) => {
+  const addPriority = async (name, sortOrder = 0) => {
     try {
       const { data, error } = await supabase
         .from('priorities')
-        .insert([{ name, enabled: true }])
+        .insert([{ name, enabled: true, sort_order: sortOrder }])
         .select()
         .single();
       if (error) throw error;
       
       setConfig(prev => {
-        const raw = [...prev.rawPriorities, { ...data, enabled: true }];
+        const raw = [...prev.rawPriorities, { ...data, enabled: true, sort_order: sortOrder }].sort((a,b) => (a.sort_order - b.sort_order) || (a.id - b.id));
         return {
           ...prev,
           rawPriorities: raw,
@@ -403,7 +403,7 @@ export const TaskProvider = ({ children }) => {
       if (error) throw error;
 
       setConfig(prev => {
-        const raw = prev.rawPriorities.map(p => p.id === id ? { ...p, ...data } : p);
+        const raw = prev.rawPriorities.map(p => p.id === id ? { ...p, ...data } : p).sort((a,b) => (a.sort_order - b.sort_order) || (a.id - b.id));
         return {
           ...prev,
           rawPriorities: raw,
@@ -415,17 +415,17 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const addOfficer = async (name) => {
+  const addOfficer = async (name, sortOrder = 0) => {
     try {
       const { data, error } = await supabase
         .from('officers')
-        .insert([{ name, enabled: true }])
+        .insert([{ name, enabled: true, sort_order: sortOrder }])
         .select()
         .single();
       if (error) throw error;
 
       setConfig(prev => {
-        const raw = [...prev.rawOfficers, { ...data, enabled: true }];
+        const raw = [...prev.rawOfficers, { ...data, enabled: true, sort_order: sortOrder }].sort((a,b) => (a.sort_order - b.sort_order) || (a.id - b.id));
         return {
           ...prev,
           rawOfficers: raw,
@@ -448,7 +448,7 @@ export const TaskProvider = ({ children }) => {
       if (error) throw error;
 
       setConfig(prev => {
-        const raw = prev.rawOfficers.map(o => o.id === id ? { ...o, ...data } : o);
+        const raw = prev.rawOfficers.map(o => o.id === id ? { ...o, ...data } : o).sort((a,b) => (a.sort_order - b.sort_order) || (a.id - b.id));
         return {
           ...prev,
           rawOfficers: raw,
@@ -460,17 +460,17 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const addStatus = async (name) => {
+  const addStatus = async (name, sortOrder = 0) => {
     try {
       const { data, error } = await supabase
         .from('statuses')
-        .insert([{ name, enabled: true }])
+        .insert([{ name, enabled: true, sort_order: sortOrder }])
         .select()
         .single();
       if (error) throw error;
 
       setConfig(prev => {
-        const raw = [...prev.rawStatuses, { ...data, enabled: true }];
+        const raw = [...prev.rawStatuses, { ...data, enabled: true, sort_order: sortOrder }].sort((a,b) => (a.sort_order - b.sort_order) || (a.id - b.id));
         return {
           ...prev,
           rawStatuses: raw,
@@ -493,7 +493,7 @@ export const TaskProvider = ({ children }) => {
       if (error) throw error;
 
       setConfig(prev => {
-        const raw = prev.rawStatuses.map(s => s.id === id ? { ...s, ...data } : s);
+        const raw = prev.rawStatuses.map(s => s.id === id ? { ...s, ...data } : s).sort((a,b) => (a.sort_order - b.sort_order) || (a.id - b.id));
         return {
           ...prev,
           rawStatuses: raw,
