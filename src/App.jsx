@@ -10,6 +10,7 @@ import SubInchargeDashboard from './pages/SubInchargeDashboard';
 import TaskEntry from './pages/TaskEntry';
 import UserManagement from './pages/UserManagement';
 import SystemSettings from './pages/SystemSettings';
+import ImportantInstructions from './pages/ImportantInstructions';
 
 const ProtectedRoute = ({ children, allowedRoles, requiresPowers, requiresMasters }) => {
   const { currentUser } = useTaskContext();
@@ -65,6 +66,11 @@ const AppContent = () => {
           <Route path="/incharge/settings" element={
             <ProtectedRoute allowedRoles={['incharge', 'sub_incharge']} requiresMasters={true}>
               <SystemSettings />
+            </ProtectedRoute>
+          } />
+          <Route path="/instructions" element={
+            <ProtectedRoute allowedRoles={['incharge', 'sub_incharge', 'subordinate']}>
+              <ImportantInstructions />
             </ProtectedRoute>
           } />
           <Route path="/task/new" element={

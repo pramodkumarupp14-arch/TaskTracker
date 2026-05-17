@@ -4,7 +4,7 @@ import { Activity, LogOut, Key, Eye, EyeOff } from 'lucide-react';
 import { useTaskContext } from '../context/TaskContext';
 
 const Navbar = () => {
-  const { currentUser, logout, updateUser } = useTaskContext();
+  const { currentUser, logout, updateUser, instructions = [] } = useTaskContext();
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,12 +52,47 @@ const Navbar = () => {
     return 'Subordinate';
   };
 
+  // Count unacknowledged instructions for active subordinates/sub-incharges
+  const unreadCount = currentUser && (currentUser.role === 'subordinate' || currentUser.role === 'sub_incharge')
+    ? instructions.filter(i => !i.seen_by?.some(s => s.username === currentUser.username)).length
+    : 0;
+
   return (
     <nav className="navbar">
-      <div className="navbar-brand">
+      <div 
+        className="navbar-brand" 
+        style={{ cursor: 'pointer' }}
+        onClick={() => navigate(currentUser ? (currentUser.role === 'incharge' ? '/incharge' : currentUser.role === 'sub_incharge' ? '/sub-incharge' : '/subordinate') : '/')}
+      >
         <Activity size={24} />
         TaskTracker Pro
       </div>
+
+      {currentUser && (
+        <div style={{ display: 'flex', gap: '1rem', marginLeft: '2rem', marginRight: 'auto' }}>
+          <button 
+            className="btn btn-outline" 
+            onClick={() => navigate('/instructions')}
+            style={{ 
+              border: 'none', 
+              color: 'var(--text-main)', 
+              fontWeight: 600, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.35rem',
+              padding: '0.5rem 1rem',
+              fontSize: '0.875rem' 
+            }}
+          >
+            📢 Instructions
+            {unreadCount > 0 && (
+              <span className="badge" style={{ background: 'var(--danger-light)', color: 'var(--danger-text)', fontSize: '0.75rem', padding: '0.1rem 0.35rem', borderRadius: '50%' }}>
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
       {currentUser && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.875rem' }}>

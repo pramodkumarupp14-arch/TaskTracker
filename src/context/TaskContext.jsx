@@ -56,6 +56,7 @@ export const useTaskContext = () => useContext(TaskContext);
 export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [instructions, setInstructions] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('currentUser_v4');
     return saved ? JSON.parse(saved) : null;
@@ -72,12 +73,13 @@ export const TaskProvider = ({ children }) => {
 
   const fetchData = async () => {
     try {
-      const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
+      const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes, instructionsRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('users').select('*'),
         supabase.from('priorities').select('*').order('sort_order', { ascending: true }).order('id'),
         supabase.from('officers').select('*').order('sort_order', { ascending: true }).order('id'),
-        supabase.from('statuses').select('*').order('sort_order', { ascending: true }).order('id')
+        supabase.from('statuses').select('*').order('sort_order', { ascending: true }).order('id'),
+        supabase.from('instructions').select('*').order('created_at', { ascending: false })
       ]);
 
       if (tasksRes.error) throw tasksRes.error;
@@ -107,8 +109,10 @@ export const TaskProvider = ({ children }) => {
         enabled: u.enabled !== false,
         power_assign_tasks: u.power_assign_tasks !== false,
         power_forward_tasks: u.power_forward_tasks !== false,
-        power_manage_masters: u.power_manage_masters === true 
+        power_manage_masters: u.power_manage_masters === true,
+        power_manage_instructions: u.power_manage_instructions === true 
       })));
+      setInstructions(instructionsRes.data || []);
       
       setConfig({
         priorities: rawPri.filter(p => p.enabled).map(p => p.name),
@@ -127,12 +131,13 @@ export const TaskProvider = ({ children }) => {
 
   const refreshData = async () => {
     try {
-      const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes] = await Promise.all([
+      const [tasksRes, usersRes, prioritiesRes, officersRes, statusesRes, instructionsRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('users').select('*'),
         supabase.from('priorities').select('*').order('sort_order', { ascending: true }).order('id'),
         supabase.from('officers').select('*').order('sort_order', { ascending: true }).order('id'),
-        supabase.from('statuses').select('*').order('sort_order', { ascending: true }).order('id')
+        supabase.from('statuses').select('*').order('sort_order', { ascending: true }).order('id'),
+        supabase.from('instructions').select('*').order('created_at', { ascending: false })
       ]);
 
       if (tasksRes.error || usersRes.error || prioritiesRes.error || officersRes.error) return;
@@ -154,8 +159,10 @@ export const TaskProvider = ({ children }) => {
         enabled: u.enabled !== false,
         power_assign_tasks: u.power_assign_tasks !== false,
         power_forward_tasks: u.power_forward_tasks !== false,
-        power_manage_masters: u.power_manage_masters === true 
+        power_manage_masters: u.power_manage_masters === true,
+        power_manage_instructions: u.power_manage_instructions === true 
       })));
+      setInstructions(instructionsRes.data || []);
       
       setConfig({
         priorities: rawPri.filter(p => p.enabled).map(p => p.name),
@@ -326,7 +333,8 @@ export const TaskProvider = ({ children }) => {
       enabled: user.enabled !== false, 
       power_assign_tasks: user.power_assign_tasks !== false,
       power_forward_tasks: user.power_forward_tasks !== false,
-      power_manage_masters: user.power_manage_masters === true 
+      power_manage_masters: user.power_manage_masters === true,
+      power_manage_instructions: user.power_manage_instructions === true 
     };
     try {
       const { data, error } = await supabase
@@ -341,7 +349,8 @@ export const TaskProvider = ({ children }) => {
         enabled: data.enabled !== false, 
         power_assign_tasks: data.power_assign_tasks !== false,
         power_forward_tasks: data.power_forward_tasks !== false,
-        power_manage_masters: data.power_manage_masters === true 
+        power_manage_masters: data.power_manage_masters === true,
+        power_manage_instructions: data.power_manage_instructions === true 
       }]);
     } catch (err) {
       console.error('Error adding user:', err);
@@ -363,7 +372,8 @@ export const TaskProvider = ({ children }) => {
         enabled: data.enabled !== false, 
         power_assign_tasks: data.power_assign_tasks !== false,
         power_forward_tasks: data.power_forward_tasks !== false,
-        power_manage_masters: data.power_manage_masters === true 
+        power_manage_masters: data.power_manage_masters === true,
+        power_manage_instructions: data.power_manage_instructions === true 
       } : u));
     } catch (err) {
       console.error('Error updating user:', err);
@@ -505,9 +515,64 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  // Important Instructions Functions
+  const addInstruction = async (givenBy, givenDate, details) => {
+    const newInst = { given_by: givenBy, given_date: givenDate, details, seen_by: [] };
+    try {
+      const { data, error } = await supabase
+        .from('instructions')
+        .insert([newInst])
+        .select()
+        .single();
+      if (error) throw error;
+      setInstructions(prev => [data, ...prev]);
+    } catch (err) {
+      console.error('Error adding instruction:', err);
+    }
+  };
+
+  const updateInstruction = async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('instructions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      setInstructions(prev => prev.map(inst => inst.id === id ? data : inst));
+    } catch (err) {
+      console.error('Error updating instruction:', err);
+    }
+  };
+
+  const deleteInstruction = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('instructions')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setInstructions(prev => prev.filter(inst => inst.id !== id));
+    } catch (err) {
+      console.error('Error deleting instruction:', err);
+    }
+  };
+
+  const acknowledgeInstruction = async (instructionId, username) => {
+    const inst = instructions.find(i => i.id === instructionId);
+    if (!inst) return;
+    
+    const seenByList = Array.isArray(inst.seen_by) ? inst.seen_by : [];
+    if (seenByList.some(s => s.username === username)) return;
+
+    const updatedSeenBy = [...seenByList, { username, timestamp: new Date().toISOString() }];
+    await updateInstruction(instructionId, { seen_by: updatedSeenBy });
+  };
+
   return (
     <TaskContext.Provider value={{
-      tasks, users, config, loading, currentUser,
+      tasks, users, config, loading, currentUser, instructions,
       login, logout,
       addTask, updateGlobalTaskStatus, updateSubordinateStatus, pushTask, forwardTask,
       deleteTask, deleteTasks, resetTasks,
@@ -515,7 +580,8 @@ export const TaskProvider = ({ children }) => {
       addPriority, updatePriority,
       addOfficer, updateOfficer,
       addStatus, updateStatus,
-      refreshData
+      refreshData,
+      addInstruction, updateInstruction, deleteInstruction, acknowledgeInstruction
     }}>
       {children}
     </TaskContext.Provider>

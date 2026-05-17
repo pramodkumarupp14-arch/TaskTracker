@@ -19,7 +19,8 @@ const UserManagement = () => {
     enabled: true,
     power_assign_tasks: true,
     power_forward_tasks: true,
-    power_manage_masters: false
+    power_manage_masters: false,
+    power_manage_instructions: false
   });
 
   const openNewUserModal = () => {
@@ -32,7 +33,8 @@ const UserManagement = () => {
       enabled: true, 
       power_assign_tasks: true,
       power_forward_tasks: true,
-      power_manage_masters: false
+      power_manage_masters: false,
+      power_manage_instructions: false
     });
     setIsModalOpen(true);
   };
@@ -47,7 +49,8 @@ const UserManagement = () => {
       enabled: user.enabled !== false,
       power_assign_tasks: user.power_assign_tasks !== false,
       power_forward_tasks: user.power_forward_tasks !== false,
-      power_manage_masters: user.power_manage_masters === true
+      power_manage_masters: user.power_manage_masters === true,
+      power_manage_instructions: user.power_manage_instructions === true
     });
     setIsModalOpen(true);
   };
@@ -152,7 +155,8 @@ const UserManagement = () => {
                           {user.power_assign_tasks !== false && <span className="badge" style={{ background: 'var(--success-light)', color: 'var(--success-text)', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>Assign</span>}
                           {user.power_forward_tasks !== false && <span className="badge" style={{ background: 'var(--success-light)', color: 'var(--success-text)', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>Forward</span>}
                           {user.power_manage_masters === true && <span className="badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>Masters</span>}
-                          {user.power_assign_tasks === false && user.power_forward_tasks === false && user.power_manage_masters !== true && (
+                          {user.power_manage_instructions === true && <span className="badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>Instructions</span>}
+                          {user.power_assign_tasks === false && user.power_forward_tasks === false && user.power_manage_masters !== true && user.power_manage_instructions !== true && (
                             <span className="badge" style={{ background: 'var(--danger-light)', color: 'var(--danger-text)', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>None</span>
                           )}
                         </div>
@@ -278,7 +282,7 @@ const UserManagement = () => {
                     </label>
                   </div>
 
-                  <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}>
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <input 
                       type="checkbox" 
                       id="masters-checkbox"
@@ -287,6 +291,18 @@ const UserManagement = () => {
                     />
                     <label htmlFor="masters-checkbox" className="form-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 400 }}>
                       Allow Managing Masters (Priorities, Statuses, Officers)
+                    </label>
+                  </div>
+
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 0 }}>
+                    <input 
+                      type="checkbox" 
+                      id="instructions-checkbox"
+                      checked={formData.power_manage_instructions} 
+                      onChange={(e) => setFormData({...formData, power_manage_instructions: e.target.checked})}
+                    />
+                    <label htmlFor="instructions-checkbox" className="form-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 400 }}>
+                      Allow Managing Instructions (Create, Edit, Delete)
                     </label>
                   </div>
                 </div>
