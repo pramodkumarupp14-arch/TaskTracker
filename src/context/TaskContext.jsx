@@ -105,7 +105,13 @@ export const TaskProvider = ({ children }) => {
       const rawOff = (officersRes.data || []).map(o => ({ ...o, enabled: o.enabled !== false }));
 
       setTasks(tasksRes.data.map(mapToCamel));
-      setUsers((usersRes.data || []).map(u => ({ ...u, enabled: u.enabled !== false, has_powers: u.has_powers !== false })));
+      setUsers((usersRes.data || []).map(u => ({ 
+        ...u, 
+        enabled: u.enabled !== false,
+        power_assign_tasks: u.power_assign_tasks !== false,
+        power_forward_tasks: u.power_forward_tasks !== false,
+        power_manage_masters: u.power_manage_masters === true 
+      })));
       
       setConfig({
         priorities: rawPri.filter(p => p.enabled).map(p => p.name),
@@ -140,7 +146,6 @@ export const TaskProvider = ({ children }) => {
     if (currentUser && users.length > 0) {
       const updatedSelf = users.find(u => u.id === currentUser.id);
       if (updatedSelf) {
-        // If disabled, log out automatically
         if (updatedSelf.enabled === false) {
           setCurrentUser(null);
         } else if (JSON.stringify(updatedSelf) !== JSON.stringify(currentUser)) {
@@ -237,13 +242,54 @@ export const TaskProvider = ({ children }) => {
     updateTask(taskId, { assignedTo, subordinateStatuses: newSubStatuses });
   };
 
+  const deleteTask = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setTasks(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      console.error('Error deleting task:', err);
+    }
+  };
+
+  const deleteTasks = async (ids) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+      setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+    } catch (err) {
+      console.error('Error deleting multiple tasks:', err);
+    }
+  };
+
+  const resetTasks = async () => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .neq('id', 0);
+      if (error) throw error;
+      setTasks([]);
+    } catch (err) {
+      console.error('Error resetting tasks:', err);
+    }
+  };
+
   // ── Users ───────────────────────────────────────────────────────
   const addUser = async (user) => {
     const newUser = { 
       ...user, 
       id: Date.now(), 
       enabled: user.enabled !== false, 
-      has_powers: user.has_powers !== false 
+      power_assign_tasks: user.power_assign_tasks !== false,
+      power_forward_tasks: user.power_forward_tasks !== false,
+      power_manage_masters: user.power_manage_masters === true 
     };
     try {
       const { data, error } = await supabase
@@ -253,7 +299,13 @@ export const TaskProvider = ({ children }) => {
         .single();
 
       if (error) throw error;
-      setUsers(prev => [...prev, { ...data, enabled: data.enabled !== false, has_powers: data.has_powers !== false }]);
+      setUsers(prev => [...prev, { 
+        ...data, 
+        enabled: data.enabled !== false, 
+        power_assign_tasks: data.power_assign_tasks !== false,
+        power_forward_tasks: data.power_forward_tasks !== false,
+        power_manage_masters: data.power_manage_masters === true 
+      }]);
     } catch (err) {
       console.error('Error adding user:', err);
     }
@@ -269,7 +321,13 @@ export const TaskProvider = ({ children }) => {
         .single();
 
       if (error) throw error;
-      setUsers(prev => prev.map(u => u.id === id ? { ...data, enabled: data.enabled !== false, has_powers: data.has_powers !== false } : u));
+      setUsers(prev => prev.map(u => u.id === id ? { 
+        ...data, 
+        enabled: data.enabled !== false, 
+        power_assign_tasks: data.power_assign_tasks !== false,
+        power_forward_tasks: data.power_forward_tasks !== false,
+        power_manage_masters: data.power_manage_masters === true 
+      } : u));
     } catch (err) {
       console.error('Error updating user:', err);
     }
@@ -416,6 +474,7 @@ export const TaskProvider = ({ children }) => {
       tasks, users, config, loading, currentUser,
       login, logout,
       addTask, updateGlobalTaskStatus, updateSubordinateStatus, pushTask, forwardTask,
+      deleteTask, deleteTasks, resetTasks,
       addUser, updateUser,
       addPriority, updatePriority,
       addOfficer, updateOfficer,

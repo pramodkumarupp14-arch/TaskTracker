@@ -11,7 +11,7 @@ import TaskEntry from './pages/TaskEntry';
 import UserManagement from './pages/UserManagement';
 import SystemSettings from './pages/SystemSettings';
 
-const ProtectedRoute = ({ children, allowedRoles, requiresPowers }) => {
+const ProtectedRoute = ({ children, allowedRoles, requiresPowers, requiresMasters }) => {
   const { currentUser } = useTaskContext();
   if (!currentUser) return <Navigate to="/" />;
   
@@ -21,8 +21,13 @@ const ProtectedRoute = ({ children, allowedRoles, requiresPowers }) => {
     return <Navigate to="/subordinate" />;
   }
 
-  // If sub-incharge powers are revoked, restrict access to supervisory areas
-  if (requiresPowers && currentUser.role === 'sub_incharge' && currentUser.has_powers === false) {
+  // If sub-incharge task assignment powers are revoked, restrict access
+  if (requiresPowers && currentUser.role === 'sub_incharge' && currentUser.power_assign_tasks === false) {
+    return <Navigate to="/sub-incharge" />;
+  }
+
+  // If sub-incharge masters powers are revoked, restrict access to settings
+  if (requiresMasters && currentUser.role === 'sub_incharge' && currentUser.power_manage_masters !== true) {
     return <Navigate to="/sub-incharge" />;
   }
 
@@ -58,7 +63,7 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           <Route path="/incharge/settings" element={
-            <ProtectedRoute allowedRoles={['incharge']}>
+            <ProtectedRoute allowedRoles={['incharge', 'sub_incharge']} requiresMasters={true}>
               <SystemSettings />
             </ProtectedRoute>
           } />

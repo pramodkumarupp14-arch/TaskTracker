@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Clock, AlertCircle, Calendar, Forward, MessageSquare, Download, FileText, Search, LayoutGrid, List, BellRing, Filter, ArrowUpDown } from 'lucide-react';
+import { Clock, AlertCircle, Calendar, Forward, MessageSquare, Download, FileText, Search, LayoutGrid, List, BellRing, Filter, ArrowUpDown, Trash2 } from 'lucide-react';
 import { format, isPast, addDays, isBefore, parse } from 'date-fns';
 import { exportToExcel, exportToPDF } from '../utils/export';
 import { useTaskContext } from '../context/TaskContext';
@@ -12,7 +12,7 @@ const TaskBoard = ({
   onForward,
   onPush
 }) => {
-  const { users, config, currentUser } = useTaskContext();
+  const { users, config, currentUser, deleteTask, deleteTasks, resetTasks } = useTaskContext();
   const [viewMode, setViewMode] = useState('medium'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
@@ -20,6 +20,11 @@ const TaskBoard = ({
   const [filterAssignedBy, setFilterAssignedBy] = useState('');
   const [sortBy, setSortBy] = useState('deadline-asc');
   
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const enableBulkActions = currentUser?.role === 'incharge';
+
   const getUrgencyClass = (deadline) => {
     if (!deadline) return '';
     try {
@@ -73,6 +78,36 @@ const TaskBoard = ({
     return filtered;
   }, [tasks, searchTerm, filterPriority, filterStatus, filterAssignedBy, sortBy]);
 
+  // Bulk action handlers
+  const handleDeleteSingle = async (id, e) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this task? This action cannot be undone.")) {
+      await deleteTask(id);
+      setSelectedIds(prev => prev.filter(x => x !== id));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete the ${selectedIds.length} selected task(s)? This action cannot be undone.`)) {
+      await deleteTasks(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (window.confirm("⚠️ WARNING: This will permanently delete ALL tasks in the system! This action cannot be undone. Are you absolutely sure?")) {
+      const confirmWord = window.prompt("Type 'DELETE ALL' to confirm resetting the task list:");
+      if (confirmWord === "DELETE ALL") {
+        await resetTasks();
+        setSelectedIds([]);
+        alert("Task list reset successful!");
+      } else {
+        alert("Reset canceled.");
+      }
+    }
+  };
+
   const renderCard = (task) => {
     const isAssignedToMe = task.assignedTo && currentUser && task.assignedTo.includes(currentUser.name);
     const urgency = getUrgencyClass(task.tentativeCompletionTime);
@@ -99,6 +134,34 @@ const TaskBoard = ({
 
     return (
       <div key={task.id} className={`card ${urgency}`} style={gridStyle}>
+        {enableBulkActions && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', background: 'var(--bg-app)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: textSizes.meta, fontWeight: 500 }}>
+              <input 
+                type="checkbox" 
+                checked={selectedIds.includes(task.id)}
+                onChange={() => {
+                  if (selectedIds.includes(task.id)) {
+                    setSelectedIds(prev => prev.filter(x => x !== task.id));
+                  } else {
+                    setSelectedIds(prev => [...prev, task.id]);
+                  }
+                }}
+                style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+              />
+              Select Task
+            </label>
+            <button 
+              className="btn" 
+              style={{ padding: '0.25rem', background: 'none', border: 'none', color: 'var(--danger)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} 
+              onClick={(e) => handleDeleteSingle(task.id, e)}
+              title="Delete Task"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
           <div>
             <span className={`badge badge-${(task.priority || 'medium').toLowerCase().replace('+', 'plus')}`} style={{ marginBottom: '0.5rem', fontSize: textSizes.meta }}>{task.priority} Priority</span>
@@ -145,7 +208,7 @@ const TaskBoard = ({
               const stat = subObj.status || 'pending';
               
               if (task.status === 'fully_completed' && stat === 'pending') {
-                return null; // hide pending others if task is fully completed
+                return null; 
               }
               
               const isMe = currentUser && assignee === currentUser.name;
@@ -154,17 +217,17 @@ const TaskBoard = ({
               
               return (
                 <div key={assignee} style={{ fontSize: textSizes.meta, background: isMe ? 'var(--primary-light)' : 'var(--surface)', color: 'var(--text-main)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)', border: '1px solid', borderColor: isMe ? 'var(--primary)' : 'var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: subObj.reason ? '0.5rem' : '0' }}>
-                    <div>
+                  <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'flex-start', marginBottom: subObj.reason ? '0.5rem' : '0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                       <strong style={{ color: isMe ? 'var(--primary)' : 'inherit' }}>{assignee} <span style={{opacity: 0.5, fontSize: '0.8em'}}>({roleTag})</span></strong>
-                      {subObj.updatedAt && (
-                        <div style={{ fontSize: '0.65rem', opacity: 0.7, fontStyle: 'italic', marginTop: '0.1rem' }}>
-                          Updated: {format(new Date(subObj.updatedAt), 'dd MMM, HH:mm')}
-                        </div>
-                      )}
+                      <span className={`badge badge-${stat.toLowerCase()}`} style={{ marginLeft: '0.5rem' }}>{stat.replace(/_/g, ' ')}</span>
                     </div>
-                    <span className={`badge badge-${stat.toLowerCase()}`} style={{ marginLeft: '0.5rem' }}>{stat.replace(/_/g, ' ')}</span>
                   </div>
+                  {subObj.updatedAt && (
+                    <div style={{ fontSize: '0.65rem', opacity: 0.7, fontStyle: 'italic', marginTop: '0.1rem', marginBottom: '0.25rem' }}>
+                      Updated: {format(new Date(subObj.updatedAt), 'dd MMM, HH:mm')}
+                    </div>
+                  )}
                   {subObj.reason && (
                     <div style={{ padding: '0.5rem', background: 'var(--bg-app)', borderLeft: '3px solid var(--secondary)', borderRadius: 'var(--radius-sm)', fontStyle: 'italic', color: 'var(--text-main)' }}>
                       "{subObj.reason}"
@@ -211,6 +274,7 @@ const TaskBoard = ({
           <table className="table">
             <thead>
               <tr>
+                {enableBulkActions && <th>Select / Delete</th>}
                 <th>Source & Letter</th>
                 <th style={{ maxWidth: '250px' }}>Assigned By & Instructions</th>
                 <th>Dates & Deadlines</th>
@@ -235,6 +299,32 @@ const TaskBoard = ({
                 
                 return (
                 <tr key={task.id}>
+                  {enableBulkActions && (
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(task.id)}
+                          onChange={() => {
+                            if (selectedIds.includes(task.id)) {
+                              setSelectedIds(prev => prev.filter(x => x !== task.id));
+                            } else {
+                              setSelectedIds(prev => [...prev, task.id]);
+                            }
+                          }}
+                          style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer' }}
+                        />
+                        <button 
+                          type="button" 
+                          style={{ padding: '0.25rem', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                          onClick={(e) => handleDeleteSingle(task.id, e)}
+                          title="Delete Task"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                   <td>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{task.sourceDept}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
@@ -412,6 +502,52 @@ const TaskBoard = ({
           </div>
         </div>
       </div>
+
+      {/* Bulk actions control bar */}
+      {enableBulkActions && (
+        <div className="card animate-fade-in" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', background: 'var(--danger-light)', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '1rem', marginBottom: '1.5rem', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, color: 'var(--danger-text)', fontSize: '0.875rem' }}>
+              <input 
+                type="checkbox" 
+                checked={processedTasks.length > 0 && selectedIds.length === processedTasks.length} 
+                onChange={() => {
+                  if (selectedIds.length === processedTasks.length) {
+                    setSelectedIds([]);
+                  } else {
+                    setSelectedIds(processedTasks.map(t => t.id));
+                  }
+                }}
+                style={{ width: '1.15rem', height: '1.15rem', cursor: 'pointer' }}
+              />
+              Select All Visible ({processedTasks.length})
+            </label>
+            {selectedIds.length > 0 && (
+              <span style={{ fontSize: '0.875rem', color: 'var(--danger-text)', fontWeight: 500 }}>
+                {selectedIds.length} Task(s) Selected
+              </span>
+            )}
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button 
+              className="btn" 
+              style={{ background: 'var(--danger)', color: 'white', opacity: selectedIds.length === 0 ? 0.5 : 1, padding: '0.45rem 1rem', fontSize: '0.8rem', display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.length === 0}
+            >
+              <Trash2 size={14} /> Delete Selected ({selectedIds.length})
+            </button>
+            <button 
+              className="btn btn-outline" 
+              style={{ borderColor: 'var(--danger)', color: 'var(--danger-text)', background: 'transparent', padding: '0.45rem 1rem', fontSize: '0.8rem' }}
+              onClick={handleResetAll}
+            >
+              Reset Task List (All)
+            </button>
+          </div>
+        </div>
+      )}
 
       <div id="task-board-content">
         {processedTasks.length === 0 ? (

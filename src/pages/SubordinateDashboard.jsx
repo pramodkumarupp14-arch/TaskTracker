@@ -12,12 +12,22 @@ const SubordinateDashboard = ({ hideHeader }) => {
   const [forwardModalTask, setForwardModalTask] = useState(null);
   const [forwardAssignees, setForwardAssignees] = useState([]);
 
-  // Visibility Hierarchy: Incharge/Sub-Incharge (with powers) see all tasks.
-  // Revoked Sub-Incharges and subordinates see only tasks assigned directly to them.
-  const isSupervisory = currentUser?.role === 'incharge' || (currentUser?.role === 'sub_incharge' && currentUser?.has_powers !== false);
+  // Dashboard board visibility: see all tasks if they have assign or forward permissions.
+  // Otherwise, if all powers are revoked, see only directly assigned tasks.
+  const isSupervisory = currentUser?.role === 'incharge' || (
+    currentUser?.role === 'sub_incharge' && 
+    (currentUser?.power_assign_tasks !== false || currentUser?.power_forward_tasks !== false)
+  );
+
   const myTasks = isSupervisory 
     ? tasks 
     : tasks.filter(t => t.assignedTo && t.assignedTo.includes(currentUser?.name));
+
+  // Determine forwarding permission
+  const allowForwarding = currentUser?.role === 'incharge' || (
+    currentUser?.role === 'sub_incharge' && 
+    currentUser?.power_forward_tasks !== false
+  );
 
   // Only allow forwarding to active subordinates
   const subordinates = users.filter(u => u.role === 'subordinate' && u.enabled !== false);
@@ -73,7 +83,7 @@ const SubordinateDashboard = ({ hideHeader }) => {
         currentUser={currentUser}
         isSupervisory={isSupervisory}
         onUpdateSubordinateStatus={openActionModal}
-        onForward={openForwardModal}
+        onForward={allowForwarding ? openForwardModal : undefined}
       />
 
       {/* Update Status Modal */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import SubordinateDashboard from './SubordinateDashboard';
-import { Plus, Clock, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { Plus, Clock, CheckCircle, AlertCircle, FileText, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTaskContext } from '../context/TaskContext';
 
@@ -13,22 +13,32 @@ const SubInchargeDashboard = () => {
   const resolvedCount = tasks.filter(t => t.status === 'fully_completed' || t.status === 'resolved').length;
   const totalCount = tasks.length;
 
+  const hasAssignPower = currentUser?.power_assign_tasks !== false;
+  const hasMastersPower = currentUser?.power_manage_masters === true;
+
   return (
     <div className="animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Sub-Incharge Dashboard</h1>
           <p style={{ color: 'var(--text-muted)' }}>
-            {currentUser?.has_powers !== false 
+            {hasAssignPower 
               ? "Manage your team's tasks and assign new ones." 
               : "View and update tasks assigned to you."}
           </p>
         </div>
-        {currentUser?.has_powers !== false && (
-          <button className="btn btn-primary" onClick={() => navigate('/task/new')}>
-            <Plus size={20} /> Assign New Task
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          {hasMastersPower && (
+            <button className="btn btn-outline" onClick={() => navigate('/incharge/settings')}>
+              <Settings size={20} /> System Settings
+            </button>
+          )}
+          {hasAssignPower && (
+            <button className="btn btn-primary" onClick={() => navigate('/task/new')}>
+              <Plus size={20} /> Assign New Task
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="stats-grid" style={{ marginBottom: '2rem' }}>
