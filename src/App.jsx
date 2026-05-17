@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TaskProvider, useTaskContext } from './context/TaskContext';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -73,9 +73,9 @@ const AppContent = () => {
 function App() {
   return (
     <TaskProvider>
-      <BrowserRouter>
+      <HashRouter>
         <AppContent />
-      </BrowserRouter>
+      </HashRouter>
     </TaskProvider>
   );
 }
