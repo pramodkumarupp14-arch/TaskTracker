@@ -89,15 +89,20 @@ const SystemSettings = () => {
 
   const handleToggleEnable = async (item) => {
     const nextEnabled = !item.enabled;
+    if (activeTab === 'statuses' && item.name === 'pending' && !nextEnabled) {
+      alert("The 'pending' status is required by the system and cannot be disabled.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to ${nextEnabled ? 'enable' : 'disable'} the master config item "${item.name.replace(/_/g, ' ')}"?`)) {
+      return;
+    }
+
     if (activeTab === 'priorities') {
       await updatePriority(item.id, { enabled: nextEnabled });
     } else if (activeTab === 'officers') {
       await updateOfficer(item.id, { enabled: nextEnabled });
     } else if (activeTab === 'statuses') {
-      if (item.name === 'pending' && !nextEnabled) {
-        alert("The 'pending' status is required by the system and cannot be disabled.");
-        return;
-      }
       await updateStatus(item.id, { enabled: nextEnabled });
     }
   };
@@ -140,6 +145,9 @@ const SystemSettings = () => {
   };
 
   const handleSaveSequence = async () => {
+    if (!window.confirm("Are you sure you want to permanently save the new display sequence layout for these configuration items?")) {
+      return;
+    }
     setIsSaving(true);
     try {
       const promises = localItems.map((item, index) => {

@@ -74,6 +74,11 @@ const ImportantInstructions = () => {
     e.preventDefault();
     if (!formData.details.trim()) return;
 
+    const actionText = editingInst ? "update this important instruction" : "publish this new important instruction to all users";
+    if (!window.confirm(`Are you sure you want to ${actionText}?`)) {
+      return;
+    }
+
     if (editingInst) {
       await updateInstruction(editingInst.id, {
         given_by: formData.givenBy,
@@ -263,7 +268,11 @@ const ImportantInstructions = () => {
                     <button 
                       className="btn btn-primary" 
                       style={{ width: '100%', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                      onClick={() => acknowledgeInstruction(inst.id, currentUser.username)}
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to acknowledge receipt of this instruction? This will permanently log your name and current timestamp.")) {
+                          acknowledgeInstruction(inst.id, currentUser.username);
+                        }
+                      }}
                     >
                       <Check size={18} /> I Have Read & Acknowledged This Instruction
                     </button>

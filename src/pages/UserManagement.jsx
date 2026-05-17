@@ -57,6 +57,14 @@ const UserManagement = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const actionText = editingUser 
+      ? `update the user account profile and permissions for "${formData.name}"`
+      : `create a new user account for "${formData.name}"`;
+      
+    if (!window.confirm(`Are you sure you want to ${actionText}?`)) {
+      return;
+    }
+
     if (editingUser) {
       updateUser(editingUser.id, formData);
     } else {
